@@ -1,0 +1,45 @@
+name: Event SOON Status Checker
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-events:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright beautifulsoup4 requests
+          playwright install --with-deps chromium
+
+      - name: Run Monitor Script
+        env:
+          BORAC_EMAIL: "rencontrer@tuta.io"
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+          RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
+        run: |
+          python monitor.py
+
+      - name: Save Updated State File
+        if: always()
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add seen_events.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "update seen_events state" && git push)
